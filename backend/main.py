@@ -2,26 +2,24 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from faster_whisper import WhisperModel
 
-import tempfile
-import subprocess
+import gc
 import json
 import os
-import wave
 import struct
+import subprocess
+import tempfile
+import wave
 
 
 app = FastAPI(
     title="Voice Challenge AI Backend",
-    version="1.1.0"
+    version="1.2.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -30,37 +28,15 @@ app.add_middleware(
 # =========================================================
 # WHISPER
 #
-# Deployment note:
-# Render Free has only 512 MB RAM. Loading the model at
-# process startup can crash the service before Uvicorn opens
-# its port. We therefore:
-#   1) load Whisper only when transcription is requested
-#   2) default to "tiny" for the free deployment
-#
-# You can override it later:
-#   WHISPER_MODEL=base
-#   WHISPER_MODEL=small
+# Render Free has 512 MB RAM, so the model is created only
+# while transcription is running and released afterwards.
+# "tiny" is the safest default for the free instance.
 # =========================================================
 
 WHISPER_MODEL_NAME = os.getenv(
     "WHISPER_MODEL",
     "tiny",
 )
-
-_whisper_model = None
-
-
-def get_whisper_model():
-    global _whisper_model
-
-    if _whisper_model is None:
-        _whisper_model = WhisperModel(
-            WHISPER_MODEL_NAME,
-            device="cpu",
-            compute_type="int8",
-        )
-
-    return _whisper_model
 
 
 @app.get("/")
@@ -76,11 +52,7 @@ def root():
 def health():
     return {
         "backend": "online",
-        "whisper": (
-            "loaded"
-            if _whisper_model is not None
-            else "lazy"
-        ),
+        "whisper": "on-demand",
         "whisper_model": WHISPER_MODEL_NAME,
     }
 
@@ -174,60 +146,70 @@ def extract_audio(video_path, audio_path):
 
     subprocess.run(
         command,
-        capture_output=True,
-        text=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         check=True,
     )
 
 
 # =========================================================
-# WAVEFORM
+# LOW-MEMORY WAVEFORM
+#
+# Reads only one waveform bucket at a time instead of loading
+# the entire WAV into RAM and expanding it into a huge tuple.
 # =========================================================
 
 def generate_waveform(audio_path, points=220):
-    with wave.open(audio_path, "rb") as wav_file:
-        sample_width = wav_file.getsampwidth()
-        frame_count = wav_file.getnframes()
-        raw_audio = wav_file.readframes(frame_count)
-
-    if sample_width != 2:
-        raise ValueError(
-            "Waveform generator expects 16-bit PCM audio."
-        )
-
-    sample_count = len(raw_audio) // 2
-
-    samples = struct.unpack(
-        f"<{sample_count}h",
-        raw_audio,
-    )
-
-    samples_per_point = max(
-        1,
-        len(samples) // points,
-    )
-
     amplitudes = []
 
-    for index in range(
-        0,
-        len(samples),
-        samples_per_point,
-    ):
-        chunk = samples[
-            index:index + samples_per_point
-        ]
+    with wave.open(audio_path, "rb") as wav_file:
+        sample_width = wav_file.getsampwidth()
+        channels = wav_file.getnchannels()
+        frame_count = wav_file.getnframes()
 
-        if not chunk:
-            continue
+        if sample_width != 2:
+            raise ValueError(
+                "Waveform generator expects 16-bit PCM audio."
+            )
 
-        peak = max(abs(sample) for sample in chunk)
-
-        amplitudes.append(
-            round(peak / 32768, 4)
+        frames_per_point = max(
+            1,
+            frame_count // points,
         )
 
-    return amplitudes[:points]
+        for _ in range(points):
+            raw_audio = wav_file.readframes(
+                frames_per_point
+            )
+
+            if not raw_audio:
+                break
+
+            sample_count = (
+                len(raw_audio) // sample_width
+            )
+
+            if sample_count <= 0:
+                continue
+
+            samples = struct.unpack(
+                f"<{sample_count}h",
+                raw_audio,
+            )
+
+            if channels > 1:
+                samples = samples[::channels]
+
+            peak = max(
+                (abs(sample) for sample in samples),
+                default=0,
+            )
+
+            amplitudes.append(
+                round(peak / 32768, 4)
+            )
+
+    return amplitudes
 
 
 # =========================================================
@@ -246,71 +228,87 @@ def normalize_language(language):
 def transcribe_audio(audio_path, language="auto"):
     forced_language = normalize_language(language)
 
-    whisper_model = get_whisper_model()
+    whisper_model = None
 
-    segments, info = whisper_model.transcribe(
-        audio_path,
-        language=forced_language,
-        task="transcribe",
-        beam_size=5,
-        temperature=0,
-        vad_filter=True,
-        vad_parameters={
-            "min_silence_duration_ms": 300,
-        },
-        word_timestamps=True,
-        condition_on_previous_text=False,
-    )
+    try:
+        whisper_model = WhisperModel(
+            WHISPER_MODEL_NAME,
+            device="cpu",
+            compute_type="int8",
+            cpu_threads=1,
+            num_workers=1,
+        )
 
-    transcript_segments = []
+        segments, info = whisper_model.transcribe(
+            audio_path,
+            language=forced_language,
+            task="transcribe",
 
-    for segment in segments:
-        words = []
+            # beam_size=1 sharply reduces decoder memory compared
+            # with the previous beam_size=5.
+            beam_size=1,
 
-        if segment.words:
-            for word in segment.words:
-                clean_word = word.word.strip()
+            temperature=0,
+            vad_filter=True,
+            vad_parameters={
+                "min_silence_duration_ms": 300,
+            },
 
-                if not clean_word:
-                    continue
+            # Keep this because VOX needs precise dialogue timing.
+            word_timestamps=True,
 
-                words.append({
-                    "word": clean_word,
-                    "start": round(word.start, 2),
-                    "end": round(word.end, 2),
+            condition_on_previous_text=False,
+        )
+
+        transcript_segments = []
+
+        # Consume the generator while the model is alive.
+        for segment in segments:
+            words = []
+
+            if segment.words:
+                for word in segment.words:
+                    clean_word = word.word.strip()
+
+                    if not clean_word:
+                        continue
+
+                    words.append({
+                        "word": clean_word,
+                        "start": round(word.start, 2),
+                        "end": round(word.end, 2),
+                    })
+
+            text = segment.text.strip()
+
+            if text:
+                transcript_segments.append({
+                    "start": round(segment.start, 2),
+                    "end": round(segment.end, 2),
+                    "text": text,
+                    "words": words,
                 })
 
-        text = segment.text.strip()
+        return {
+            "language": info.language,
+            "language_probability": round(
+                info.language_probability,
+                3,
+            ),
+            "forced_language": forced_language,
+            "model": WHISPER_MODEL_NAME,
+            "segments": transcript_segments,
+        }
 
-        if text:
-            transcript_segments.append({
-                "start": round(segment.start, 2),
-                "end": round(segment.end, 2),
-                "text": text,
-                "words": words,
-            })
+    finally:
+        if whisper_model is not None:
+            del whisper_model
 
-    return {
-        "language": info.language,
-        "language_probability": round(
-            info.language_probability,
-            3,
-        ),
-        "forced_language": forced_language,
-        "model": WHISPER_MODEL_NAME,
-        "segments": transcript_segments,
-    }
+        gc.collect()
 
 
 # =========================================================
 # SUBTITLE / DIALOGUE BLOCKS
-#
-# Whisper punctuation is not always reliable for dialectal
-# Arabic, so blocks are split using a combination of:
-# - punctuation
-# - pauses between words
-# - maximum line duration
-# - maximum word count
 # =========================================================
 
 def build_subtitle_lines(transcription):
@@ -322,7 +320,6 @@ def build_subtitle_lines(transcription):
         if segment_words:
             all_words.extend(segment_words)
         elif segment.get("text"):
-            # Fallback when word timestamps are unavailable.
             return [
                 {
                     "start": item["start"],
@@ -413,6 +410,37 @@ def build_subtitle_lines(transcription):
 
 
 # =========================================================
+# LOW-MEMORY UPLOAD
+#
+# The old version did:
+#   content = await video.read()
+# which held the entire uploaded video in RAM.
+# This version writes 1 MB chunks directly to disk.
+# =========================================================
+
+async def save_upload_in_chunks(
+    upload: UploadFile,
+    target_path: str,
+    chunk_size: int = 1024 * 1024,
+):
+    total_bytes = 0
+
+    with open(target_path, "wb") as target:
+        while True:
+            chunk = await upload.read(
+                chunk_size
+            )
+
+            if not chunk:
+                break
+
+            target.write(chunk)
+            total_bytes += len(chunk)
+
+    return total_bytes
+
+
+# =========================================================
 # MAIN ANALYSIS ENDPOINT
 # =========================================================
 
@@ -421,7 +449,9 @@ async def analyze_video(
     video: UploadFile = File(...),
     language: str = Form("auto"),
 ):
-    suffix = os.path.splitext(video.filename)[1]
+    suffix = os.path.splitext(
+        video.filename or "scene.mp4"
+    )[1] or ".mp4"
 
     video_temp = tempfile.NamedTemporaryFile(
         delete=False,
@@ -439,18 +469,27 @@ async def analyze_video(
     video_temp.close()
     audio_temp.close()
 
-    content = await video.read()
-
-    with open(video_path, "wb") as file:
-        file.write(content)
+    total_bytes = 0
 
     try:
-        video_info = get_video_metadata(video_path)
+        total_bytes = await save_upload_in_chunks(
+            video,
+            video_path,
+        )
+
+        video_info = get_video_metadata(
+            video_path
+        )
 
         if not video_info["has_audio"]:
             return {
                 "status": "analyzed",
                 "filename": video.filename,
+                "content_type": video.content_type,
+                "size_mb": round(
+                    total_bytes / (1024 * 1024),
+                    2,
+                ),
                 **video_info,
                 "waveform": [],
                 "transcription": None,
@@ -459,7 +498,10 @@ async def analyze_video(
                 "suggested_modes": ["solo"],
             }
 
-        extract_audio(video_path, audio_path)
+        extract_audio(
+            video_path,
+            audio_path,
+        )
 
         waveform = generate_waveform(
             audio_path,
@@ -483,16 +525,14 @@ async def analyze_video(
             for line in subtitle_lines
         ]
 
-        file_size_mb = round(
-            len(content) / (1024 * 1024),
-            2,
-        )
-
         return {
             "status": "analyzed",
             "filename": video.filename,
             "content_type": video.content_type,
-            "size_mb": file_size_mb,
+            "size_mb": round(
+                total_bytes / (1024 * 1024),
+                2,
+            ),
             **video_info,
             "audio": {
                 "sample_rate": 16000,
@@ -511,8 +551,15 @@ async def analyze_video(
         }
 
     finally:
+        try:
+            await video.close()
+        except Exception:
+            pass
+
         if os.path.exists(video_path):
             os.remove(video_path)
 
         if os.path.exists(audio_path):
             os.remove(audio_path)
+
+        gc.collect()
