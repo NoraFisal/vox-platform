@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-import gc
+import httpx
 import json
 import os
 import struct
@@ -9,12 +9,10 @@ import subprocess
 import tempfile
 import wave
 
-import httpx
-
 
 app = FastAPI(
     title="Voice Challenge AI Backend",
-    version="1.3.0",
+    version="1.3.1",
 )
 
 app.add_middleware(
@@ -28,16 +26,14 @@ app.add_middleware(
 
 # =========================================================
 # GROQ SPEECH-TO-TEXT
-#
-# Whisper now runs on Groq instead of inside Render.
-# This keeps the same VOX flow while removing the local
-# Whisper model from Render's 512 MB RAM.
 # =========================================================
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 GROQ_TRANSCRIPTION_URL = (
     "https://api.groq.com/openai/v1/audio/transcriptions"
 )
+
 GROQ_WHISPER_MODEL = os.getenv(
     "GROQ_WHISPER_MODEL",
     "whisper-large-v3-turbo",
@@ -80,12 +76,23 @@ def get_video_metadata(video_path):
         video_path,
     ]
 
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="ffprobe is not installed on the server.",
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not inspect video: {exc.stderr}",
+        ) from exc
 
     metadata = json.loads(result.stdout)
 
@@ -103,13 +110,16 @@ def get_video_metadata(video_path):
             frame_rate = stream.get("avg_frame_rate")
 
             if frame_rate and frame_rate != "0/0":
-                numerator, denominator = frame_rate.split("/")
+                try:
+                    numerator, denominator = frame_rate.split("/")
 
-                if float(denominator) != 0:
-                    fps = round(
-                        float(numerator) / float(denominator),
-                        2,
-                    )
+                    if float(denominator) != 0:
+                        fps = round(
+                            float(numerator) / float(denominator),
+                            2,
+                        )
+                except (TypeError, ValueError, ZeroDivisionError):
+                    fps = None
 
         if stream.get("codec_type") == "audio":
             has_audio = True
@@ -120,7 +130,10 @@ def get_video_metadata(video_path):
     ).get("duration")
 
     if duration_value:
-        duration = round(float(duration_value), 2)
+        try:
+            duration = round(float(duration_value), 2)
+        except (TypeError, ValueError):
+            duration = None
 
     return {
         "duration_seconds": duration,
@@ -134,8 +147,8 @@ def get_video_metadata(video_path):
 # =========================================================
 # AUDIO EXTRACTION
 #
-# FLAC keeps speech quality while staying much smaller than
-# PCM WAV. Groq supports FLAC directly.
+# FLAC is much smaller than uncompressed WAV and is accepted
+# directly by Groq.
 # =========================================================
 
 def extract_audio(video_path, audio_path):
@@ -145,59 +158,83 @@ def extract_audio(video_path, audio_path):
         "-i",
         video_path,
         "-vn",
-        "-ar",
-        "16000",
         "-ac",
         "1",
+        "-ar",
+        "16000",
         "-c:a",
         "flac",
         audio_path,
     ]
 
-    subprocess.run(
-        command,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=True,
-    )
+    try:
+        subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="ffmpeg is not installed on the server.",
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not extract audio: {exc.stderr}",
+        ) from exc
 
 
 # =========================================================
-# LOW-MEMORY WAVEFORM
+# SMALL WAV FOR WAVEFORM
 #
-# We create a tiny temporary WAV only for waveform sampling.
-# It is read bucket-by-bucket, never loaded fully into RAM.
+# Python's built-in wave module cannot read FLAC, so create a
+# small temporary PCM WAV only for waveform generation.
 # =========================================================
 
-def create_waveform_wav(audio_path, waveform_path):
+def extract_waveform_audio(video_path, waveform_path):
     command = [
         "ffmpeg",
         "-y",
         "-i",
-        audio_path,
-        "-ar",
-        "16000",
+        video_path,
+        "-vn",
         "-ac",
         "1",
-        "-c:a",
+        "-ar",
+        "8000",
+        "-acodec",
         "pcm_s16le",
         waveform_path,
     ]
 
-    subprocess.run(
-        command,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=True,
-    )
+    try:
+        subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="ffmpeg is not installed on the server.",
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not prepare waveform audio: {exc.stderr}",
+        ) from exc
 
+
+# =========================================================
+# WAVEFORM
+# =========================================================
 
 def generate_waveform(audio_path, points=220):
-    amplitudes = []
-
     with wave.open(audio_path, "rb") as wav_file:
         sample_width = wav_file.getsampwidth()
-        channels = wav_file.getnchannels()
         frame_count = wav_file.getnframes()
 
         if sample_width != 2:
@@ -205,37 +242,37 @@ def generate_waveform(audio_path, points=220):
                 "Waveform generator expects 16-bit PCM audio."
             )
 
+        if frame_count <= 0:
+            return []
+
+        # Avoid loading/expanding the entire audio into a giant
+        # Python tuple. Read small windows instead.
         frames_per_point = max(
             1,
             frame_count // points,
         )
 
+        amplitudes = []
+
         for _ in range(points):
-            raw_audio = wav_file.readframes(
-                frames_per_point
-            )
+            raw_audio = wav_file.readframes(frames_per_point)
 
             if not raw_audio:
                 break
 
-            sample_count = (
-                len(raw_audio) // sample_width
-            )
+            sample_count = len(raw_audio) // 2
 
             if sample_count <= 0:
                 continue
 
             samples = struct.unpack(
                 f"<{sample_count}h",
-                raw_audio,
+                raw_audio[: sample_count * 2],
             )
 
-            if channels > 1:
-                samples = samples[::channels]
-
             peak = max(
-                (abs(sample) for sample in samples),
-                default=0,
+                abs(sample)
+                for sample in samples
             )
 
             amplitudes.append(
@@ -274,49 +311,59 @@ def transcribe_audio(audio_path, language="auto"):
 
     forced_language = normalize_language(language)
 
+    # Important:
+    # Keep data as a dictionary. Passing a list of tuples to
+    # httpx together with files caused:
+    #
+    # TypeError: expected a bytes-like object, tuple found
+    #
+    # We request word-level timestamps. VOX can build its own
+    # subtitle/dialogue segments from these words.
     data = {
         "model": GROQ_WHISPER_MODEL,
         "response_format": "verbose_json",
         "temperature": "0",
+        "timestamp_granularities[]": "word",
     }
-
-    # Groq accepts both segment and word timestamps.
-    # Sending both preserves the timing data VOX already uses.
-    multipart_fields = [
-        ("timestamp_granularities[]", "segment"),
-        ("timestamp_granularities[]", "word"),
-    ]
 
     if forced_language:
         data["language"] = forced_language
 
-    with open(audio_path, "rb") as audio_file:
-        files = {
-            "file": (
-                os.path.basename(audio_path),
-                audio_file,
-                "audio/flac",
-            )
-        }
+    try:
+        with open(audio_path, "rb") as audio_file:
+            files = {
+                "file": (
+                    "audio.flac",
+                    audio_file,
+                    "audio/flac",
+                )
+            }
 
-        try:
-            with httpx.Client(timeout=180.0) as client:
+            with httpx.Client(
+                timeout=httpx.Timeout(
+                    180.0,
+                    connect=30.0,
+                )
+            ) as client:
                 response = client.post(
                     GROQ_TRANSCRIPTION_URL,
                     headers={
-                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Authorization": (
+                            f"Bearer {GROQ_API_KEY}"
+                        ),
                     },
-                    data=[
-                        *list(data.items()),
-                        *multipart_fields,
-                    ],
+                    data=data,
                     files=files,
                 )
-        except httpx.HTTPError as exc:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Could not reach Groq transcription service: {exc}",
-            ) from exc
+
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Could not reach Groq transcription "
+                f"service: {exc}"
+            ),
+        ) from exc
 
     if response.status_code >= 400:
         try:
@@ -333,36 +380,45 @@ def transcribe_audio(audio_path, language="auto"):
             },
         )
 
-    result = response.json()
+    try:
+        result = response.json()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Groq returned an invalid JSON response.",
+        ) from exc
 
-    # Groq verbose_json can provide both segments and a global
-    # word list. Prefer segment words when present; otherwise
-    # attach global words to the matching segment window.
     global_words = result.get("words") or []
     raw_segments = result.get("segments") or []
 
     transcript_segments = []
 
+    # -----------------------------------------------------
+    # Use provider segments when available
+    # -----------------------------------------------------
+
     for segment in raw_segments:
-        seg_start = _safe_float(segment.get("start"))
-        seg_end = _safe_float(segment.get("end"))
-        seg_text = (segment.get("text") or "").strip()
+        seg_start = _safe_float(
+            segment.get("start")
+        )
 
-        raw_words = segment.get("words") or []
+        seg_end = _safe_float(
+            segment.get("end")
+        )
 
-        if not raw_words and global_words:
-            raw_words = [
-                word
-                for word in global_words
-                if (
-                    _safe_float(word.get("start")) >= seg_start - 0.05
-                    and _safe_float(word.get("end")) <= seg_end + 0.05
-                )
-            ]
+        seg_text = (
+            segment.get("text")
+            or ""
+        ).strip()
 
         words = []
 
-        for word in raw_words:
+        segment_words = (
+            segment.get("words")
+            or []
+        )
+
+        for word in segment_words:
             clean_word = (
                 word.get("word")
                 or word.get("text")
@@ -384,6 +440,41 @@ def transcribe_audio(audio_path, language="auto"):
                 ),
             })
 
+        # If words are global instead of embedded in each
+        # segment, attach the ones inside this time window.
+        if not words and global_words:
+            for word in global_words:
+                word_start = _safe_float(
+                    word.get("start")
+                )
+
+                word_end = _safe_float(
+                    word.get("end")
+                )
+
+                if (
+                    word_start >= seg_start - 0.05
+                    and word_end <= seg_end + 0.05
+                ):
+                    clean_word = (
+                        word.get("word")
+                        or word.get("text")
+                        or ""
+                    ).strip()
+
+                    if clean_word:
+                        words.append({
+                            "word": clean_word,
+                            "start": round(
+                                word_start,
+                                2,
+                            ),
+                            "end": round(
+                                word_end,
+                                2,
+                            ),
+                        })
+
         if seg_text:
             transcript_segments.append({
                 "start": round(seg_start, 2),
@@ -392,7 +483,12 @@ def transcribe_audio(audio_path, language="auto"):
                 "words": words,
             })
 
-    # Defensive fallback if Groq returns words but no segment list.
+    # -----------------------------------------------------
+    # Groq may return global words without segments.
+    # Build one temporary transcript segment in that case.
+    # build_subtitle_lines() will split it naturally.
+    # -----------------------------------------------------
+
     if not transcript_segments and global_words:
         words = []
 
@@ -418,7 +514,10 @@ def transcribe_audio(audio_path, language="auto"):
                 ),
             })
 
-        text = (result.get("text") or "").strip()
+        text = (
+            result.get("text")
+            or ""
+        ).strip()
 
         if text and words:
             transcript_segments.append({
@@ -426,6 +525,26 @@ def transcribe_audio(audio_path, language="auto"):
                 "end": words[-1]["end"],
                 "text": text,
                 "words": words,
+            })
+
+    # -----------------------------------------------------
+    # Last fallback: text only
+    # -----------------------------------------------------
+
+    if not transcript_segments:
+        text = (
+            result.get("text")
+            or ""
+        ).strip()
+
+        if text:
+            transcript_segments.append({
+                "start": 0.0,
+                "end": _safe_float(
+                    result.get("duration")
+                ),
+                "text": text,
+                "words": [],
             })
 
     detected_language = (
@@ -453,19 +572,31 @@ def transcribe_audio(audio_path, language="auto"):
 def build_subtitle_lines(transcription):
     all_words = []
 
-    for segment in transcription.get("segments", []):
-        segment_words = segment.get("words", [])
+    for segment in transcription.get(
+        "segments",
+        [],
+    ):
+        segment_words = segment.get(
+            "words",
+            [],
+        )
 
         if segment_words:
             all_words.extend(segment_words)
+
         elif segment.get("text"):
+            # If word timestamps aren't available, keep
+            # provider segments as subtitle lines.
             return [
                 {
                     "start": item["start"],
                     "end": item["end"],
                     "text": item["text"],
                 }
-                for item in transcription.get("segments", [])
+                for item in transcription.get(
+                    "segments",
+                    [],
+                )
                 if item.get("text")
             ]
 
@@ -494,7 +625,8 @@ def build_subtitle_lines(transcription):
             return
 
         text = " ".join(
-            word["word"] for word in current
+            word["word"]
+            for word in current
         ).strip()
 
         if text:
@@ -515,12 +647,15 @@ def build_subtitle_lines(transcription):
             else None
         )
 
-        punctuation_end = word["word"].endswith(
-            ending_marks
+        punctuation_end = (
+            word["word"].endswith(
+                ending_marks
+            )
         )
 
         duration = (
-            current[-1]["end"] - current[0]["start"]
+            current[-1]["end"]
+            - current[0]["start"]
         )
 
         gap_after = (
@@ -529,7 +664,9 @@ def build_subtitle_lines(transcription):
             else 0
         )
 
-        enough_words_for_pause = len(current) >= 2
+        enough_words_for_pause = (
+            len(current) >= 2
+        )
 
         should_flush = (
             punctuation_end
@@ -549,32 +686,6 @@ def build_subtitle_lines(transcription):
 
 
 # =========================================================
-# LOW-MEMORY UPLOAD
-# =========================================================
-
-async def save_upload_in_chunks(
-    upload: UploadFile,
-    target_path: str,
-    chunk_size: int = 1024 * 1024,
-):
-    total_bytes = 0
-
-    with open(target_path, "wb") as target:
-        while True:
-            chunk = await upload.read(
-                chunk_size
-            )
-
-            if not chunk:
-                break
-
-            target.write(chunk)
-            total_bytes += len(chunk)
-
-    return total_bytes
-
-
-# =========================================================
 # MAIN ANALYSIS ENDPOINT
 # =========================================================
 
@@ -583,9 +694,17 @@ async def analyze_video(
     video: UploadFile = File(...),
     language: str = Form("auto"),
 ):
+    original_filename = (
+        video.filename
+        or "video.mp4"
+    )
+
     suffix = os.path.splitext(
-        video.filename or "scene.mp4"
-    )[1] or ".mp4"
+        original_filename
+    )[1]
+
+    if not suffix:
+        suffix = ".mp4"
 
     video_temp = tempfile.NamedTemporaryFile(
         delete=False,
@@ -613,10 +732,28 @@ async def analyze_video(
     total_bytes = 0
 
     try:
-        total_bytes = await save_upload_in_chunks(
-            video,
-            video_path,
-        )
+        # Stream the uploaded video to disk instead of doing
+        # await video.read(), which could duplicate a large
+        # video in Render's limited RAM.
+        with open(video_path, "wb") as output_file:
+            while True:
+                chunk = await video.read(
+                    1024 * 1024
+                )
+
+                if not chunk:
+                    break
+
+                total_bytes += len(chunk)
+                output_file.write(chunk)
+
+        await video.close()
+
+        if total_bytes == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded video is empty.",
+            )
 
         video_info = get_video_metadata(
             video_path
@@ -625,7 +762,7 @@ async def analyze_video(
         if not video_info["has_audio"]:
             return {
                 "status": "analyzed",
-                "filename": video.filename,
+                "filename": original_filename,
                 "content_type": video.content_type,
                 "size_mb": round(
                     total_bytes / (1024 * 1024),
@@ -636,16 +773,20 @@ async def analyze_video(
                 "transcription": None,
                 "subtitle_lines": [],
                 "dialogue": [],
-                "suggested_modes": ["solo"],
+                "suggested_modes": [
+                    "solo",
+                ],
             }
 
+        # FLAC for Groq
         extract_audio(
             video_path,
             audio_path,
         )
 
-        create_waveform_wav(
-            audio_path,
+        # Low-rate temporary WAV only for waveform
+        extract_waveform_audio(
+            video_path,
             waveform_path,
         )
 
@@ -673,7 +814,7 @@ async def analyze_video(
 
         return {
             "status": "analyzed",
-            "filename": video.filename,
+            "filename": original_filename,
             "content_type": video.content_type,
             "size_mb": round(
                 total_bytes / (1024 * 1024),
@@ -696,18 +837,34 @@ async def analyze_video(
             ],
         }
 
-    finally:
-        try:
-            await video.close()
-        except Exception:
-            pass
+    except HTTPException:
+        raise
 
-        for temp_path in (
+    except Exception as exc:
+        # Makes unexpected production failures visible in
+        # Render logs and gives the frontend a useful error.
+        print(
+            f"VIDEO ANALYSIS ERROR: "
+            f"{type(exc).__name__}: {exc}",
+            flush=True,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Video analysis failed: "
+                f"{type(exc).__name__}: {exc}"
+            ),
+        ) from exc
+
+    finally:
+        for path in (
             video_path,
             audio_path,
             waveform_path,
         ):
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-
-        gc.collect()
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except OSError:
+                pass
