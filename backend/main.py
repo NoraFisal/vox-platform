@@ -17,8 +17,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,22 +30,37 @@ app.add_middleware(
 # =========================================================
 # WHISPER
 #
-# "small" is a deliberate upgrade from "base":
-# better multilingual/Arabic accuracy while still practical
-# on a CPU laptop. You can override it later with:
-#   $env:WHISPER_MODEL="medium"
+# Deployment note:
+# Render Free has only 512 MB RAM. Loading the model at
+# process startup can crash the service before Uvicorn opens
+# its port. We therefore:
+#   1) load Whisper only when transcription is requested
+#   2) default to "tiny" for the free deployment
+#
+# You can override it later:
+#   WHISPER_MODEL=base
+#   WHISPER_MODEL=small
 # =========================================================
 
 WHISPER_MODEL_NAME = os.getenv(
     "WHISPER_MODEL",
-    "small"
+    "tiny",
 )
 
-whisper_model = WhisperModel(
-    WHISPER_MODEL_NAME,
-    device="cpu",
-    compute_type="int8"
-)
+_whisper_model = None
+
+
+def get_whisper_model():
+    global _whisper_model
+
+    if _whisper_model is None:
+        _whisper_model = WhisperModel(
+            WHISPER_MODEL_NAME,
+            device="cpu",
+            compute_type="int8",
+        )
+
+    return _whisper_model
 
 
 @app.get("/")
@@ -58,7 +76,11 @@ def root():
 def health():
     return {
         "backend": "online",
-        "whisper": "ready",
+        "whisper": (
+            "loaded"
+            if _whisper_model is not None
+            else "lazy"
+        ),
         "whisper_model": WHISPER_MODEL_NAME,
     }
 
@@ -223,6 +245,8 @@ def normalize_language(language):
 
 def transcribe_audio(audio_path, language="auto"):
     forced_language = normalize_language(language)
+
+    whisper_model = get_whisper_model()
 
     segments, info = whisper_model.transcribe(
         audio_path,
