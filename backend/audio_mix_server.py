@@ -27,7 +27,7 @@ GENERATED_DIR.mkdir(
 
 app = FastAPI(
     title="VOX Dub Engine",
-    version="2.0.0",
+    version="2.0.1",
 )
 
 
@@ -207,8 +207,7 @@ def prepare_stems(
 def root():
     return {
         "status": "ok",
-        "engine":
-            "VOX Dub Engine v2",
+        "engine": "VOX Dub Engine v2",
     }
 
 
@@ -216,10 +215,12 @@ def root():
 def health():
     return {
         "status": "ok",
-        "ffmpeg":
+        "ffmpeg": (
             shutil.which(
                 "ffmpeg"
-            ) is not None,
+            )
+            is not None
+        ),
     }
 
 
@@ -230,8 +231,8 @@ async def prepare_scene(
     content = await video.read()
 
     digest = hashlib.sha256(
-            content
-        ).hexdigest()[:20]
+        content
+    ).hexdigest()[:20]
 
     job_id = f"dub-{digest}"
 
@@ -275,7 +276,17 @@ async def prepare_scene(
                 source_path,
             )
         )
+
     except Exception as error:
+        print(
+            (
+                "PREPARE SCENE ERROR: "
+                f"{type(error).__name__}: "
+                f"{error}"
+            ),
+            flush=True,
+        )
+
         raise HTTPException(
             status_code=500,
             detail=str(error),
@@ -313,6 +324,7 @@ def vocal_gain_expression(
     We use smooth fades around that padded window so the
     original actor does not pop in/out between takes.
     """
+
     expressions = []
 
     for entry in entries:
@@ -387,12 +399,13 @@ async def render_final(
 ):
     try:
         entries = json.loads(
-                manifest
-            )
+            manifest
+        )
+
     except Exception:
         raise HTTPException(
             status_code=400,
-            detail = "Invalid take manifest.",
+            detail="Invalid take manifest.",
         )
 
     job_dir = (
@@ -403,13 +416,13 @@ async def render_final(
     if not job_dir.exists():
         raise HTTPException(
             status_code=404,
-            detail = "Prepared scene was not found.",
+            detail="Prepared scene was not found.",
         )
 
     try:
         source_path = find_source_file(
-                job_dir
-            )
+            job_dir
+        )
 
         background_path, vocals_path = (
             prepare_stems(
@@ -417,7 +430,17 @@ async def render_final(
                 source_path,
             )
         )
+
     except Exception as error:
+        print(
+            (
+                "RENDER FINAL PREP ERROR: "
+                f"{type(error).__name__}: "
+                f"{error}"
+            ),
+            flush=True,
+        )
+
         raise HTTPException(
             status_code=500,
             detail=str(error),
@@ -429,7 +452,10 @@ async def render_final(
     ):
         raise HTTPException(
             status_code=400,
-            detail = "Take manifest and files do not match.",
+            detail=(
+                "Take manifest and files "
+                "do not match."
+            ),
         )
 
     takes_dir = (
@@ -575,8 +601,6 @@ async def render_final(
             )
         )
 
-        # Small fade handles prevent clicks while preserving
-        # the natural pre/post-roll captured around the line.
         fade = min(
             0.045,
             duration /
@@ -599,7 +623,9 @@ async def render_final(
                 f"atrim=0:{duration:.6f},"
                 "asetpts=PTS-STARTPTS,"
                 f"afade=t=in:st=0:d={fade:.6f},"
-                f"afade=t=out:st={fade_out_start:.6f}:d={fade:.6f},"
+                f"afade=t=out:"
+                f"st={fade_out_start:.6f}:"
+                f"d={fade:.6f},"
                 f"adelay={delay_ms}|{delay_ms}"
                 f"[{label}]"
             )
@@ -638,8 +664,8 @@ async def render_final(
     )
 
     filter_complex = ";".join(
-            filters
-        )
+        filters
+    )
 
     command.extend([
         "-filter_complex",
@@ -672,7 +698,17 @@ async def render_final(
         run_command(
             command
         )
+
     except Exception as error:
+        print(
+            (
+                "RENDER FINAL ERROR: "
+                f"{type(error).__name__}: "
+                f"{error}"
+            ),
+            flush=True,
+        )
+
         raise HTTPException(
             status_code=500,
             detail=str(error),
