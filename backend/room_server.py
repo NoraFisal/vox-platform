@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import secrets
 import sqlite3
@@ -39,8 +40,9 @@ MEDIA_DIR.mkdir(
     exist_ok=True,
 )
 
-MIX_SERVICE_URL = (
-    "http://127.0.0.1:8002"
+MIX_SERVICE_URL = os.getenv(
+    "MIX_SERVICE_URL",
+    "http://127.0.0.1:8000/api-mix",
 )
 
 

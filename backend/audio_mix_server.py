@@ -33,11 +33,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -79,14 +76,8 @@ def run_command(
     return result
 
 
-def media_url(
-    job_id,
-    filename,
-):
-    return (
-        "http://127.0.0.1:8002"
-        f"/media/{job_id}/{filename}"
-    )
+def media_url(job_id, filename):
+    return f"/api-mix/media/{job_id}/{filename}"
 
 
 def find_source_file(
