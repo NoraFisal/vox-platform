@@ -1,0 +1,17 @@
+node_modules/
+backend/.venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+dist/
+*.db
+backend/uploads/
+backend/outputs/
+backend/temp/
+.DS_Store
+backend/generated_dubs/
+backend/generated_mix/
+backend/room_media/
+backend/*.sqlite3

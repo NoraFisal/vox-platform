@@ -1,0 +1,2497 @@
+.dialogueSetupPage {
+  width: min(
+    1030px,
+    calc(100% - 40px)
+  );
+
+  margin: 0 auto;
+  padding: 28px 0 120px;
+}
+
+.dsBackButton {
+  width: 38px;
+  height: 38px;
+
+  margin-bottom: 36px;
+
+  border: 1px solid var(--border);
+  border-radius: 11px;
+
+  background: var(--surface);
+  color: var(--text);
+
+  cursor: pointer;
+}
+
+.dsHero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 28px;
+
+  margin-bottom: 30px;
+}
+
+.dsHero > div:first-child {
+  max-width: 670px;
+}
+
+.dsEyebrow {
+  color: var(--muted);
+
+  font-size: 10px;
+  font-weight: 800;
+
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.dsHero h1 {
+  margin: 10px 0 12px;
+
+  font-size:
+    clamp(
+      44px,
+      6vw,
+      70px
+    );
+
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.dsHero p {
+  margin: 0;
+
+  color: var(--muted);
+
+  line-height: 1.65;
+}
+
+.dsDetectedLanguage {
+  flex: 0 0 auto;
+
+  padding: 8px 11px;
+
+  border: 1px solid var(--border);
+  border-radius: 999px;
+
+  background: var(--surface);
+  color: var(--muted);
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.dsTopBar {
+  margin: 0 0 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.dsTopBar strong {
+  font-size: 13px;
+}
+
+.dsTopBar span {
+  color: var(--muted);
+
+  font-size: 11px;
+}
+
+.dialogueBlocks {
+  display: grid;
+  gap: 10px;
+}
+
+.dialogueBlock {
+  padding: 15px 16px;
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  background: var(--surface);
+
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.dialogueBlock:hover {
+  border-color:
+    var(--border-hover);
+}
+
+.dialogueBlock.assigned {
+  border-color:
+    rgba(
+      var(--brand-rgb),
+      0.22
+    );
+}
+
+.dialogueBlockTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 14px;
+}
+
+.dialogueIndexTime {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.dialogueNumber {
+  color: var(--brand);
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.dialogueTime {
+  color: var(--muted);
+
+  font-size: 9px;
+}
+
+/* Three identical tool slots:
+   Edit / Split / Merge */
+.dialogueActions {
+  min-width: 99px;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 2px;
+
+  opacity: 0.58;
+
+  transition:
+    opacity 0.16s ease;
+}
+
+.dialogueBlock:hover
+  .dialogueActions {
+  opacity: 1;
+}
+
+.dsIconButton {
+  width: 31px;
+  height: 31px;
+
+  flex: 0 0 31px;
+
+  position: relative;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 9px;
+
+  background: transparent;
+  color: var(--muted);
+
+  cursor: pointer;
+}
+
+.dsIconButton:hover,
+.dsIconButton.active {
+  background:
+    var(--soft-button);
+
+  color: var(--text);
+}
+
+.dsTooltip {
+  position: absolute;
+  z-index: 30;
+
+  bottom:
+    calc(100% + 7px);
+
+  left: 50%;
+
+  transform:
+    translate(
+      -50%,
+      4px
+    );
+
+  padding: 6px 8px;
+
+  border-radius: 7px;
+
+  background: #101211;
+  color: white;
+
+  font-size: 9px;
+
+  white-space: nowrap;
+
+  pointer-events: none;
+
+  opacity: 0;
+  visibility: hidden;
+
+  transition:
+    opacity 0.12s ease
+      0.4s,
+    transform 0.12s ease
+      0.4s;
+}
+
+.dsIconButton:hover
+  .dsTooltip {
+  opacity: 1;
+  visibility: visible;
+
+  transform:
+    translate(
+      -50%,
+      0
+    );
+}
+
+.dialogueText {
+  margin: 13px 0 15px;
+
+  font-size: 16px;
+  font-weight: 550;
+
+  line-height: 1.65;
+}
+
+.dialogueText[dir='rtl'] {
+  text-align: right;
+
+  font-size: 17px;
+}
+
+/* One clean control instead
+   of separate floating buttons */
+.roleSegmentedControl {
+  width: min(
+    100%,
+    420px
+  );
+
+  display: grid;
+
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+
+  padding: 3px;
+
+  border: 1px solid var(--border);
+  border-radius: 11px;
+
+  background:
+    var(--surface-soft);
+}
+
+.roleSegmentedControl
+  button {
+  min-width: 0;
+  min-height: 34px;
+
+  padding: 0 10px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  border: 0;
+  border-radius: 8px;
+
+  background: transparent;
+  color: var(--muted);
+
+  cursor: pointer;
+
+  font-size: 10px;
+  font-weight: 750;
+
+  white-space: nowrap;
+
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
+}
+
+.roleSegmentedControl
+  button:hover {
+  color: var(--text);
+}
+
+.roleSegmentedControl
+  button.active {
+  background: var(--brand);
+  color: #10201e;
+
+  box-shadow:
+    0 2px 10px
+      rgba(
+        var(--brand-rgb),
+        0.12
+      );
+}
+
+.dsInlineEditor textarea {
+  box-sizing: border-box;
+
+  width: 100%;
+  min-height: 74px;
+
+  margin-top: 12px;
+  padding: 11px 12px;
+
+  border: 1px solid var(--brand);
+  border-radius: 11px;
+
+  outline: none;
+  resize: vertical;
+
+  background:
+    var(--surface-soft);
+
+  color: var(--text);
+
+  font: inherit;
+
+  line-height: 1.6;
+}
+
+.dsInlineEditor
+  textarea[dir='rtl'] {
+  text-align: right;
+
+  font-size: 16px;
+}
+
+.dsEditorActions {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 7px;
+
+  margin-top: 7px;
+}
+
+.dsEditorActions button {
+  min-height: 32px;
+
+  padding: 0 11px;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: transparent;
+  color: var(--text);
+
+  cursor: pointer;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.dsEditorActions .save {
+  border-color: var(--brand);
+
+  background: var(--brand);
+  color: #10201e;
+}
+
+.dsWordSplitter {
+  margin-top: 13px;
+  padding: 12px;
+
+  border:
+    1px dashed
+      var(--border-hover);
+
+  border-radius: 12px;
+
+  background:
+    var(--surface-soft);
+}
+
+.dsSplitHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-bottom: 10px;
+}
+
+.dsSplitHeader > div {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.dsSplitHeader button {
+  border: 0;
+
+  background: transparent;
+  color: var(--muted);
+
+  cursor: pointer;
+}
+
+.dsWords {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  line-height: 2.2;
+}
+
+.dsWord {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dsSplitPoint {
+  width: 14px;
+  height: 27px;
+
+  padding: 0;
+
+  position: relative;
+
+  border: 0;
+
+  background: transparent;
+
+  cursor: pointer;
+}
+
+.dsSplitPoint > span {
+  position: absolute;
+
+  left: 50%;
+  top: 4px;
+  bottom: 4px;
+
+  width: 2px;
+
+  border-radius: 999px;
+
+  background: var(--brand);
+
+  opacity: 0;
+
+  transform:
+    translateX(-50%)
+    scaleY(0.35);
+
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.dsSplitPoint:hover
+  > span {
+  opacity: 1;
+
+  transform:
+    translateX(-50%)
+    scaleY(1);
+}
+
+.dsWordSplitter p {
+  margin: 8px 0 0;
+
+  color: var(--muted);
+
+  font-size: 9px;
+
+  line-height: 1.5;
+}
+
+.dsPublishOption {
+  margin-top: 18px;
+  padding: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 22px;
+
+  border: 1px solid var(--border);
+  border-radius: 15px;
+
+  background: var(--surface);
+}
+
+.dsPublishOption strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  font-size: 12px;
+}
+
+.dsPublishOption span {
+  color: var(--muted);
+
+  font-size: 10px;
+}
+
+.dsSwitch {
+  width: 48px;
+  height: 27px;
+
+  padding: 3px;
+
+  flex-shrink: 0;
+
+  border: 0;
+  border-radius: 999px;
+
+  background:
+    var(--surface-soft);
+
+  cursor: pointer;
+}
+
+.dsSwitch span {
+  width: 21px;
+  height: 21px;
+
+  display: block;
+
+  border-radius: 50%;
+
+  background: var(--muted);
+
+  transition:
+    transform 0.17s ease,
+    background 0.17s ease;
+}
+
+.dsSwitch.on {
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.22
+    );
+}
+
+.dsSwitch.on span {
+  transform:
+    translateX(21px);
+
+  background: var(--brand);
+}
+
+[dir='rtl']
+  .dsSwitch.on span {
+  transform:
+    translateX(-21px);
+}
+
+.dsFooter {
+  position: sticky;
+  z-index: 25;
+
+  bottom: 14px;
+
+  margin-top: 20px;
+
+  padding:
+    10px 11px
+    10px 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 18px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  background:
+    color-mix(
+      in srgb,
+      var(--background) 90%,
+      transparent
+    );
+
+  backdrop-filter:
+    blur(17px);
+
+  box-shadow:
+    0 14px 40px
+      var(--shadow);
+}
+
+.dsFooterStatus {
+  display: flex;
+  align-items: center;
+
+  gap: 7px;
+
+  color: var(--muted);
+
+  font-size: 10px;
+}
+
+.dsContinueButton {
+  min-height: 39px;
+
+  padding: 0 14px;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 8px;
+
+  border: 0;
+  border-radius: 9px;
+
+  background: var(--brand);
+  color: #10201e;
+
+  cursor: pointer;
+
+  font-weight: 800;
+}
+
+.dsContinueButton:disabled {
+  opacity: 0.34;
+
+  cursor: not-allowed;
+}
+
+.dsEmpty {
+  padding: 70px 20px;
+
+  text-align: center;
+
+  border: 1px solid var(--border);
+  border-radius: 18px;
+
+  background: var(--surface);
+}
+
+@media (max-width: 700px) {
+  .dialogueSetupPage {
+    width: min(
+      100% - 22px,
+      1030px
+    );
+
+    padding-top: 20px;
+  }
+
+  .dsHero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dialogueActions {
+    min-width: auto;
+  }
+
+  .roleSegmentedControl {
+    width: 100%;
+  }
+
+  .dsFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dsContinueButton {
+    justify-content: center;
+  }
+}
+
+
+/* =========================
+   SCENE TIMELINE EDITOR
+========================= */
+
+.dsTimelineEditor {
+  margin-bottom: 22px;
+  padding: 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 18px;
+
+  background: var(--surface);
+}
+
+.dsTimelineHeader {
+  margin-bottom: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.dsTimelineHeader strong {
+  display: block;
+
+  margin-bottom: 3px;
+
+  font-size: 12px;
+}
+
+.dsTimelineHeader span {
+  display: block;
+
+  color: var(--muted);
+
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.dsAddSegmentButton {
+  min-height: 36px;
+
+  padding: 0 12px;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  flex: 0 0 auto;
+
+  border: 1px solid var(--brand);
+  border-radius: 9px;
+
+  background: transparent;
+  color: var(--text);
+
+  cursor: pointer;
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.dsAddSegmentButton:hover {
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.08
+    );
+}
+
+.dsTimelineVideo {
+  width: 100%;
+  max-height: 430px;
+
+  display: block;
+
+  object-fit: contain;
+
+  border-radius: 13px;
+
+  background: #000;
+}
+
+.dsTimelineClock {
+  margin-top: 7px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  color: var(--muted);
+
+  font-size: 9px;
+}
+
+.dsTimelineTrack {
+  height: 54px;
+
+  margin-top: 9px;
+
+  position: relative;
+
+  overflow: hidden;
+
+  border: 1px solid var(--border);
+  border-radius: 11px;
+
+  background:
+    var(--surface-soft);
+}
+
+.dsTimelineSegment {
+  height: 32px;
+
+  position: absolute;
+
+  top: 10px;
+
+  min-width: 8px;
+
+  padding: 0;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+      rgba(
+        var(--brand-rgb),
+        0.34
+      );
+
+  border-radius: 7px;
+
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.14
+    );
+
+  color: var(--text);
+
+  cursor: pointer;
+}
+
+.dsTimelineSegment:hover,
+.dsTimelineSegment.active {
+  border-color: var(--brand);
+
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.28
+    );
+}
+
+.dsTimelineSegment span {
+  position: relative;
+  z-index: 2;
+
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.dsTimelinePlayhead {
+  width: 2px;
+
+  position: absolute;
+  z-index: 8;
+
+  top: 4px;
+  bottom: 4px;
+
+  border-radius: 999px;
+
+  background: var(--brand);
+
+  pointer-events: none;
+
+  transform:
+    translateX(-1px);
+}
+
+.dsNoDialogueHint {
+  margin-top: 10px;
+  padding: 11px 12px;
+
+  border:
+    1px dashed
+      var(--border-hover);
+
+  border-radius: 10px;
+
+  color: var(--muted);
+
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.dialogueActions {
+  min-width: 132px;
+}
+
+.dsTimingEditor {
+  margin-top: 13px;
+  padding: 12px;
+
+  border:
+    1px dashed
+      var(--border-hover);
+
+  border-radius: 12px;
+
+  background:
+    var(--surface-soft);
+}
+
+.dsTimingFields {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 10px;
+}
+
+.dsTimingFields label > span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--muted);
+
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.dsTimingFields input {
+  box-sizing: border-box;
+
+  width: 100%;
+  min-height: 35px;
+
+  padding: 0 9px;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  outline: none;
+
+  background: var(--surface);
+  color: var(--text);
+
+  font: inherit;
+  font-size: 10px;
+}
+
+.dsTimingFields input:focus {
+  border-color: var(--brand);
+}
+
+.dsTimingFields label > button {
+  width: 100%;
+  min-height: 30px;
+
+  margin-top: 5px;
+  padding: 0 8px;
+
+  border: 1px solid var(--border);
+  border-radius: 7px;
+
+  background: transparent;
+  color: var(--muted);
+
+  cursor: pointer;
+
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.dsTimingFields label > button:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+
+.dsTimingActions {
+  margin-top: 9px;
+
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 7px;
+}
+
+.dsTimingActions button {
+  min-height: 31px;
+
+  padding: 0 10px;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: transparent;
+  color: var(--text);
+
+  cursor: pointer;
+
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.dsTimingActions .preview {
+  border-color: var(--brand);
+
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.08
+    );
+}
+
+@media (max-width: 700px) {
+  .dsTimelineHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dsAddSegmentButton {
+    justify-content: center;
+  }
+
+  .dsTimingFields {
+    grid-template-columns: 1fr;
+  }
+
+  .dialogueActions {
+    min-width: auto;
+  }
+}
+
+
+/* =========================
+   DRAG-TO-TRIM TIMELINE
+========================= */
+
+.dsTimelineTrack {
+  touch-action: none;
+  user-select: none;
+}
+
+.dsTimelineTrack.dragging {
+  cursor: ew-resize;
+}
+
+.dsTimelineSegment {
+  overflow: visible;
+}
+
+.dsTimelineSegmentLabel {
+  position: relative;
+  z-index: 2;
+
+  pointer-events: none;
+
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.dsTrimHandle {
+  width: 10px;
+
+  position: absolute;
+  z-index: 5;
+
+  top: -2px;
+  bottom: -2px;
+
+  display: block;
+
+  border-radius: 5px;
+
+  background: var(--brand);
+
+  opacity: 0;
+
+  cursor: ew-resize;
+
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.dsTrimHandle.start {
+  left: -5px;
+}
+
+.dsTrimHandle.end {
+  right: -5px;
+}
+
+.dsTimelineSegment:hover
+  .dsTrimHandle,
+.dsTimelineSegment.active
+  .dsTrimHandle {
+  opacity: 1;
+}
+
+.dsTrimHandle:hover,
+.dsTrimHandle:active {
+  transform: scaleX(1.25);
+}
+
+.dsTrimHandle::after {
+  content: '';
+
+  width: 2px;
+  height: 12px;
+
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  border-radius: 999px;
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.55
+    );
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.dsTrimHint {
+  margin-top: 12px;
+  padding: 10px 11px;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  border:
+    1px dashed
+      var(--border-hover);
+
+  border-radius: 10px;
+
+  background:
+    var(--surface-soft);
+}
+
+.dsTrimHint > span {
+  color: var(--muted);
+
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.dsTrimHint > strong {
+  margin-right: auto;
+
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.dsTrimHint > button {
+  min-height: 30px;
+
+  padding: 0 9px;
+
+  border: 1px solid var(--brand);
+  border-radius: 7px;
+
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.08
+    );
+
+  color: var(--text);
+
+  cursor: pointer;
+
+  font-size: 8px;
+  font-weight: 750;
+}
+
+@media (pointer: coarse) {
+  .dsTrimHandle {
+    width: 16px;
+    opacity: 1;
+  }
+
+  .dsTrimHandle.start {
+    left: -8px;
+  }
+
+  .dsTrimHandle.end {
+    right: -8px;
+  }
+}
+
+
+/* =========================
+   TIMELINE EDGE FIX + CLICK CURSOR
+========================= */
+
+.dsTimelineTrack {
+  cursor: crosshair;
+}
+
+.dsTimelineTrack.dragging {
+  cursor: ew-resize;
+}
+
+.dsTimelineSegment {
+  overflow: visible;
+}
+
+.dsTrimHandle {
+  width: 8px;
+
+  position: absolute;
+  z-index: 8;
+
+  top: 0;
+  bottom: 0;
+
+  display: block;
+
+  border-radius: 5px;
+
+  background: var(--brand);
+
+  opacity: 0;
+
+  cursor: ew-resize;
+
+  box-shadow:
+    0 0 0 1px
+      rgba(
+        0,
+        0,
+        0,
+        0.16
+      );
+
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+/*
+  Handles are aligned to the ACTUAL segment borders.
+  No negative offset, so the grip visually marks the
+  exact start/end of the take.
+*/
+.dsTrimHandle.start {
+  left: 0;
+  transform:
+    translateX(-50%);
+}
+
+.dsTrimHandle.end {
+  right: 0;
+  transform:
+    translateX(50%);
+}
+
+.dsTimelineSegment:hover
+  .dsTrimHandle,
+.dsTimelineSegment.active
+  .dsTrimHandle {
+  opacity: 1;
+}
+
+.dsTrimHandle:hover,
+.dsTrimHandle:active {
+  transform:
+    translateX(-50%)
+    scaleX(1.25);
+}
+
+.dsTrimHandle.end:hover,
+.dsTrimHandle.end:active {
+  transform:
+    translateX(50%)
+    scaleX(1.25);
+}
+
+.dsTrimHandle::after {
+  content: '';
+
+  width: 2px;
+  height: 14px;
+
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  border-radius: 999px;
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.5
+    );
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.dsTimelineUsageHint {
+  margin-top: 8px;
+
+  display: flex;
+  justify-content: flex-end;
+
+  color: var(--muted);
+
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.dsTimelineUsageHint span {
+  opacity: 0.72;
+}
+
+@media (pointer: coarse) {
+  .dsTrimHandle {
+    width: 14px;
+    opacity: 1;
+  }
+
+  .dsTrimHandle.start {
+    left: 0;
+    transform:
+      translateX(-50%);
+  }
+
+  .dsTrimHandle.end {
+    right: 0;
+    transform:
+      translateX(50%);
+  }
+}
+
+
+/* =========================
+   PROFESSIONAL TIMELINE EDITOR
+========================= */
+
+.dsTimelineToolbar {
+  margin: 11px 0 10px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+}
+
+.dsTimelineToolbarLeft {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 7px;
+}
+
+.dsTimelineTool {
+  min-height: 34px;
+
+  padding: 0 11px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  background: transparent;
+  color: var(--text);
+
+  cursor: pointer;
+
+  font-size: 9px;
+  font-weight: 750;
+
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    opacity 140ms ease;
+}
+
+.dsTimelineTool:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--surface-soft);
+}
+
+.dsTimelineTool.primary {
+  border-color: var(--brand);
+
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.08
+    );
+}
+
+.dsTimelineTool.danger:hover:not(:disabled) {
+  border-color:
+    rgba(
+      220,
+      95,
+      95,
+      0.52
+    );
+
+  background:
+    rgba(
+      220,
+      95,
+      95,
+      0.08
+    );
+}
+
+.dsTimelineTool:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.dsSelectedSegmentInfo {
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  color: var(--muted);
+
+  font-size: 8px;
+}
+
+.dsSelectedSegmentInfo strong {
+  color: var(--text);
+
+  font-size: 9px;
+}
+
+.dsTimelineSegment {
+  height: 34px;
+
+  top: 9px;
+
+  overflow: visible;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+}
+
+.dsTimelineSegment.active {
+  z-index: 4;
+
+  border-color: var(--brand);
+
+  box-shadow:
+    0 0 0 1px
+      rgba(
+        var(--brand-rgb),
+        0.28
+      );
+}
+
+.dsTimelineSegmentLabel {
+  height: 100%;
+
+  position: relative;
+  z-index: 2;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 4px;
+
+  pointer-events: none;
+}
+
+.dsTimelineSegmentLabel b {
+  font-size: 9px;
+}
+
+.dsTimelineSegmentLabel small {
+  color: var(--muted);
+
+  font-size: 7px;
+  font-weight: 700;
+}
+
+/*
+  The grip center is exactly on the clip edge.
+  It is intentionally small like a real editor, not
+  a full-height floating bar.
+*/
+.dsTrimHandle {
+  width: 14px;
+  height: 34px;
+
+  position: absolute;
+  z-index: 10;
+
+  top: 50%;
+
+  display: block;
+
+  border: 0;
+  border-radius: 0;
+
+  background: transparent;
+
+  opacity: 0;
+
+  cursor: ew-resize;
+
+  box-shadow: none;
+}
+
+.dsTrimHandle.start {
+  left: 0;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.dsTrimHandle.end {
+  right: 0;
+
+  transform:
+    translate(
+      50%,
+      -50%
+    );
+}
+
+.dsTimelineSegment.active
+  .dsTrimHandle {
+  opacity: 1;
+}
+
+.dsTimelineSegment:hover
+  .dsTrimHandle {
+  opacity: 0.72;
+}
+
+.dsTrimHandle::before {
+  content: '';
+
+  width: 3px;
+  height: 22px;
+
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  border-radius: 999px;
+
+  background: var(--brand);
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.dsTrimHandle::after {
+  content: '';
+
+  width: 8px;
+  height: 8px;
+
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  border: 2px solid var(--brand);
+  border-radius: 50%;
+
+  background: var(--surface);
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.dsTrimHandle:hover::after,
+.dsTrimHandle:active::after {
+  width: 10px;
+  height: 10px;
+}
+
+.dsTimelineTrack {
+  height: 58px;
+
+  border-radius: 10px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(
+        255,
+        255,
+        255,
+        0.014
+      ),
+      transparent
+    ),
+    var(--surface-soft);
+}
+
+.dsTimelineUsageHint {
+  justify-content: flex-start;
+}
+
+@media (max-width: 700px) {
+  .dsTimelineToolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dsSelectedSegmentInfo {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+
+/* =========================
+   COMPACT DUAL EDGE TRIM HANDLES
+========================= */
+
+/*
+  Two identical grips, one on EACH exact edge.
+  No large circle. Each grip is a slim teal rail with
+  a tiny center dot so it reads like a trim handle,
+  not a floating control.
+*/
+.dsTrimHandle {
+  width: 12px !important;
+  height: 34px !important;
+
+  top: 50% !important;
+
+  border: 0 !important;
+  background: transparent !important;
+
+  cursor: ew-resize !important;
+
+  opacity: 0 !important;
+
+  box-shadow: none !important;
+
+  touch-action: none;
+}
+
+.dsTrimHandle.start {
+  left: 0 !important;
+  right: auto !important;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    ) !important;
+}
+
+.dsTrimHandle.end {
+  left: auto !important;
+  right: 0 !important;
+
+  transform:
+    translate(
+      50%,
+      -50%
+    ) !important;
+}
+
+.dsTimelineSegment.active
+  .dsTrimHandle,
+.dsTimelineSegment:hover
+  .dsTrimHandle {
+  opacity: 1 !important;
+}
+
+/* slim rail */
+.dsTrimHandle::before {
+  content: '' !important;
+
+  width: 3px !important;
+  height: 26px !important;
+
+  position: absolute !important;
+
+  top: 50% !important;
+  left: 50% !important;
+
+  border-radius: 999px !important;
+
+  background: var(--brand) !important;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    ) !important;
+
+  box-shadow:
+    0 0 0 1px
+      rgba(
+        var(--brand-rgb),
+        0.12
+      ) !important;
+}
+
+/* very small center dot */
+.dsTrimHandle::after {
+  content: '' !important;
+
+  width: 5px !important;
+  height: 5px !important;
+
+  position: absolute !important;
+
+  top: 50% !important;
+  left: 50% !important;
+
+  border: 0 !important;
+  border-radius: 50% !important;
+
+  background: var(--surface) !important;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    ) !important;
+
+  box-shadow:
+    0 0 0 1.5px
+      var(--brand) !important;
+}
+
+.dsTrimHandle:hover::before,
+.dsTrimHandle.dragging::before {
+  width: 4px !important;
+}
+
+.dsTrimHandle:hover::after,
+.dsTrimHandle.dragging::after {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.dsTrimHandle.dragging {
+  opacity: 1 !important;
+}
+
+/*
+  Make both edges easy to grab without changing
+  the visible grip size.
+*/
+.dsTrimHandle.start::marker,
+.dsTrimHandle.end::marker {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .dsTrimHandle {
+    width: 18px !important;
+    opacity: 1 !important;
+  }
+
+  .dsTrimHandle::before {
+    height: 28px !important;
+  }
+}
+
+
+/* =========================
+   TWO-SIDED LENGTH TRIM
+========================= */
+
+/*
+  Selected take:
+  BOTH edges are always visible.
+  Left grip adjusts START.
+  Right grip adjusts END.
+*/
+.dsTimelineSegment.active
+  .dsTrimHandle.start,
+.dsTimelineSegment.active
+  .dsTrimHandle.end {
+  opacity: 1 !important;
+}
+
+/*
+  Make both grips equally readable and exactly
+  centered on their segment borders.
+*/
+.dsTrimHandle.start,
+.dsTrimHandle.end {
+  width: 14px !important;
+  height: 36px !important;
+
+  top: 50% !important;
+
+  background: transparent !important;
+
+  cursor: ew-resize !important;
+}
+
+.dsTrimHandle.start {
+  left: 0 !important;
+  right: auto !important;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    ) !important;
+}
+
+.dsTrimHandle.end {
+  left: auto !important;
+  right: 0 !important;
+
+  transform:
+    translate(
+      50%,
+      -50%
+    ) !important;
+}
+
+/*
+  Same visual on both sides:
+  a short teal rail + tiny center dot.
+*/
+.dsTrimHandle.start::before,
+.dsTrimHandle.end::before {
+  width: 3px !important;
+  height: 28px !important;
+
+  background: var(--brand) !important;
+}
+
+.dsTrimHandle.start::after,
+.dsTrimHandle.end::after {
+  width: 5px !important;
+  height: 5px !important;
+
+  border-radius: 50% !important;
+
+  background: var(--surface) !important;
+
+  box-shadow:
+    0 0 0 1.5px
+      var(--brand) !important;
+}
+
+/*
+  Bigger invisible hit area, same small visible grip.
+*/
+.dsTrimHandle.start::before,
+.dsTrimHandle.end::before,
+.dsTrimHandle.start::after,
+.dsTrimHandle.end::after {
+  pointer-events: none;
+}
+
+.dsTimelineSegment.active::before,
+.dsTimelineSegment.active::after {
+  content: '';
+
+  position: absolute;
+
+  top: 0;
+  bottom: 0;
+
+  width: 10px;
+
+  pointer-events: none;
+}
+
+.dsTimelineSegment.active::before {
+  left: 0;
+}
+
+.dsTimelineSegment.active::after {
+  right: 0;
+}
+
+/*
+  While dragging either edge, make that edge slightly
+  stronger so it is obvious which side is changing.
+*/
+.dsTrimHandle.dragging::before {
+  width: 4px !important;
+}
+
+.dsTrimHandle.dragging::after {
+  width: 7px !important;
+  height: 7px !important;
+}
+
+@media (pointer: coarse) {
+  .dsTrimHandle.start,
+  .dsTrimHandle.end {
+    width: 20px !important;
+    opacity: 1 !important;
+  }
+}
+
+
+/* =========================
+   DRAG WHOLE TAKE
+========================= */
+
+/*
+  Grab the middle/body of a take to move the whole
+  block left or right without changing its duration.
+*/
+.dsTimelineSegment {
+  cursor: grab !important;
+}
+
+.dsTimelineSegment:active {
+  cursor: grabbing !important;
+}
+
+.dsTimelineSegment.active {
+  will-change:
+    left,
+    width;
+}
+
+.dsTimelineTrack.dragging
+  .dsTimelineSegment.active {
+  cursor: grabbing !important;
+
+  box-shadow:
+    0 0 0 1px
+      var(--brand),
+    0 8px 24px
+      rgba(
+        0,
+        0,
+        0,
+        0.18
+      );
+}
+
+/*
+  Edge grips remain resize cursors and take priority
+  over block movement.
+*/
+.dsTimelineSegment
+  .dsTrimHandle {
+  cursor: ew-resize !important;
+}
+
+/* Tiny visual cue inside selected blocks. */
+.dsTimelineSegment.active
+  .dsTimelineSegmentLabel::before {
+  content: '⋮⋮';
+
+  margin-right: 4px;
+
+  color: var(--brand);
+
+  font-size: 8px;
+  letter-spacing: -2px;
+
+  opacity: 0.72;
+}
+
+
+/* =========================
+   FINAL CLIP INTERACTION MODEL
+   body = MOVE
+   left edge = START
+   right edge = END
+========================= */
+
+/* The block itself is movable as one unit. */
+.dsTimelineSegment {
+  cursor: grab !important;
+}
+
+.dsTimelineSegment:active {
+  cursor: grabbing !important;
+}
+
+/*
+  These are NEW isolated classes so older .dsTrimHandle
+  rules cannot hide or reposition the right edge.
+*/
+.dsClipEdgeHandle {
+  width: 16px;
+  height: 100%;
+
+  position: absolute;
+  z-index: 50;
+
+  top: 0;
+
+  display: block;
+
+  border: 0;
+  padding: 0;
+  margin: 0;
+
+  background: transparent;
+
+  cursor: ew-resize;
+
+  opacity: 0;
+
+  touch-action: none;
+
+  pointer-events: auto;
+}
+
+/* LEFT edge sits exactly on the start border. */
+.dsClipEdgeStart {
+  left: 0;
+
+  transform:
+    translateX(-50%);
+}
+
+/* RIGHT edge sits exactly on the end border. */
+.dsClipEdgeEnd {
+  right: 0;
+
+  transform:
+    translateX(50%);
+}
+
+/* Always show BOTH edges for the selected clip. */
+.dsTimelineSegment.active
+  > .dsClipEdgeHandle {
+  opacity: 1;
+}
+
+/* Also reveal both when hovering the clip. */
+.dsTimelineSegment:hover
+  > .dsClipEdgeHandle {
+  opacity: 0.82;
+}
+
+/* Visible slim rail. */
+.dsClipEdgeHandle::before {
+  content: '';
+
+  width: 3px;
+  height: 28px;
+
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  border-radius: 999px;
+
+  background: var(--brand);
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+
+  box-shadow:
+    0 0 0 1px
+      rgba(
+        var(--brand-rgb),
+        0.14
+      );
+}
+
+/* Tiny grip marks; no large circle. */
+.dsClipEdgeHandle::after {
+  content: '';
+
+  width: 5px;
+  height: 10px;
+
+  position: absolute;
+
+  top: 50%;
+  left: 50%;
+
+  border-top:
+    1px solid
+      rgba(
+        0,
+        0,
+        0,
+        0.55
+      );
+
+  border-bottom:
+    1px solid
+      rgba(
+        0,
+        0,
+        0,
+        0.55
+      );
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
+}
+
+.dsClipEdgeHandle:hover::before,
+.dsClipEdgeHandle.dragging::before {
+  width: 4px;
+}
+
+.dsClipEdgeHandle.dragging {
+  opacity: 1;
+}
+
+/*
+  Important: allow the handles to sit outside the
+  block edge without being clipped.
+*/
+.dsTimelineSegment {
+  overflow: visible !important;
+}
+
+/*
+  The timeline itself keeps its contents visible
+  around the first/last selected clip.
+*/
+.dsTimelineTrack {
+  overflow: visible !important;
+}
+
+/*
+  The body remains the large grab target; the edges
+  get their own resize cursor and stop propagation
+  through the existing beginHandleDrag handler.
+*/
+.dsTimelineSegment
+  > .dsClipEdgeHandle {
+  cursor: ew-resize !important;
+}
+
+@media (pointer: coarse) {
+  .dsClipEdgeHandle {
+    width: 24px;
+
+    opacity: 1;
+  }
+
+  .dsClipEdgeHandle::before {
+    height: 30px;
+  }
+}
+
+
+/* =========================
+   TIMELINE POLISH
+========================= */
+
+/* Remove the duplicated header add button area gap after button removal. */
+.dsTimelineHeader {
+  align-items: flex-start;
+}
+
+/* Small quick action; intentionally quieter than Add segment. */
+.dsTimelineTool.compact {
+  min-height: 30px;
+
+  padding: 0 9px;
+
+  border-color:
+    rgba(
+      var(--brand-rgb),
+      0.28
+    );
+
+  color: var(--muted);
+
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.dsTimelineTool.compact:hover {
+  color: var(--text);
+
+  background:
+    rgba(
+      var(--brand-rgb),
+      0.06
+    );
+}
+
+/*
+  Final handle alignment:
+  both handles occupy the full clip height and center
+  their visible rail INSIDE the same coordinate system.
+  This prevents the END handle from dropping below.
+*/
+.dsTimelineSegment {
+  position: absolute !important;
+  overflow: visible !important;
+}
+
+.dsClipEdgeHandle {
+  width: 16px !important;
+  height: 100% !important;
+
+  top: 0 !important;
+  bottom: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  opacity: 0 !important;
+
+  background: transparent !important;
+
+  transform: none !important;
+}
+
+.dsClipEdgeStart {
+  left: -8px !important;
+  right: auto !important;
+}
+
+.dsClipEdgeEnd {
+  left: auto !important;
+  right: -8px !important;
+}
+
+.dsTimelineSegment.active
+  > .dsClipEdgeHandle,
+.dsTimelineSegment:hover
+  > .dsClipEdgeHandle {
+  opacity: 1 !important;
+}
+
+/* visible rail */
+.dsClipEdgeHandle::before {
+  content: '' !important;
+
+  position: static !important;
+
+  width: 3px !important;
+  height: 26px !important;
+
+  display: block !important;
+
+  border-radius: 999px !important;
+
+  background: var(--brand) !important;
+
+  transform: none !important;
+
+  box-shadow: none !important;
+}
+
+/* remove all dots/circles entirely */
+.dsClipEdgeHandle::after {
+  content: none !important;
+}
+
+/* Slight emphasis while grabbing either edge. */
+.dsClipEdgeHandle:hover::before,
+.dsClipEdgeHandle.dragging::before {
+  width: 4px !important;
+  height: 28px !important;
+}
+
+/* Keep the invisible hit target bigger than the visible rail. */
+.dsClipEdgeHandle {
+  cursor: ew-resize !important;
+  touch-action: none !important;
+}
+
+@media (pointer: coarse) {
+  .dsClipEdgeHandle {
+    width: 22px !important;
+    opacity: 1 !important;
+  }
+
+  .dsClipEdgeStart {
+    left: -11px !important;
+  }
+
+  .dsClipEdgeEnd {
+    right: -11px !important;
+  }
+}
+
+
+/* =========================================================
+   FINAL TIMELINE FIX — ONE ADD BUTTON + EXACT DUAL EDGES
+   ========================================================= */
+
+/* Hide any old header add button if stale markup survives HMR. */
+.dsTimelineHeader .dsAddSegmentButton {
+  display: none !important;
+}
+
+/* Segment is the common positioning parent for BOTH grips. */
+.dsTimelineSegment {
+  position: absolute !important;
+  overflow: visible !important;
+  cursor: grab !important;
+}
+
+.dsTimelineSegment:active {
+  cursor: grabbing !important;
+}
+
+/* Fresh isolated handles: no old pseudo-element transforms. */
+.dsFinalTrimHandle {
+  width: 18px !important;
+  height: 100% !important;
+
+  position: absolute !important;
+  z-index: 100 !important;
+
+  top: 0 !important;
+  bottom: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 0 !important;
+  background: transparent !important;
+
+  opacity: 0 !important;
+
+  cursor: ew-resize !important;
+  touch-action: none !important;
+
+  transform: none !important;
+}
+
+/* Center the hit area exactly on the LEFT clip border. */
+.dsFinalTrimStart {
+  left: -9px !important;
+  right: auto !important;
+}
+
+/* Center the hit area exactly on the RIGHT clip border. */
+.dsFinalTrimEnd {
+  left: auto !important;
+  right: -9px !important;
+}
+
+/* Both appear together whenever the take is selected. */
+.dsTimelineSegment.active
+  > .dsFinalTrimHandle {
+  opacity: 1 !important;
+}
+
+.dsTimelineSegment:hover
+  > .dsFinalTrimHandle {
+  opacity: 0.82 !important;
+}
+
+.dsFinalTrimHandle.dragging {
+  opacity: 1 !important;
+}
+
+/* The visible rail is vertically centered identically on both sides. */
+.dsFinalTrimHandle > i {
+  width: 4px !important;
+  height: 28px !important;
+
+  display: block !important;
+  flex: 0 0 auto !important;
+
+  border-radius: 999px !important;
+
+  background: var(--brand) !important;
+
+  pointer-events: none !important;
+}
+
+.dsFinalTrimHandle:hover > i,
+.dsFinalTrimHandle.dragging > i {
+  width: 5px !important;
+  height: 30px !important;
+}
+
+/* Kill inherited old decorations entirely. */
+.dsFinalTrimHandle::before,
+.dsFinalTrimHandle::after {
+  content: none !important;
+  display: none !important;
+}
+
+@media (pointer: coarse) {
+  .dsFinalTrimHandle {
+    width: 24px !important;
+    opacity: 1 !important;
+  }
+
+  .dsFinalTrimStart {
+    left: -12px !important;
+  }
+
+  .dsFinalTrimEnd {
+    right: -12px !important;
+  }
+}

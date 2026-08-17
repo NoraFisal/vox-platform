@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800&family=Sora:wght@300;400;500;600;700;800&display=swap');
+
+/* English */
+html,
+body,
+#root,
+.app,
+button,
+input,
+textarea,
+select {
+  font-family: 'Sora', sans-serif;
+}
+
+/* Arabic interface */
+[dir='rtl'],
+[dir='rtl'] button,
+[dir='rtl'] input,
+[dir='rtl'] textarea,
+[dir='rtl'] select {
+  font-family: 'Alexandria', sans-serif;
+}
+
+/* Arabic transcript can appear while the website UI is English */
+[dir='rtl'].dialogueText,
+textarea[dir='rtl'],
+.dsWords[dir='rtl'],
+.timedSubtitle[dir='rtl'] {
+  font-family: 'Alexandria', sans-serif;
+}
+
+/* English transcript */
+[dir='ltr'].dialogueText,
+textarea[dir='ltr'],
+.dsWords[dir='ltr'],
+.timedSubtitle[dir='ltr'] {
+  font-family: 'Sora', sans-serif;
+}
+
+/* Display headings */
+.heroContent h1,
+.scenePageIntro h1,
+.recordingHeader h1,
+.resultIntro h1,
+.createIntro h1,
+.dsHero h1,
+.editableSceneTitle h1,
+.editableSceneTitle input,
+.libraryHeader h2 {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+}
+
+[dir='rtl'] .heroContent h1,
+[dir='rtl'] .scenePageIntro h1,
+[dir='rtl'] .recordingHeader h1,
+[dir='rtl'] .resultIntro h1,
+[dir='rtl'] .createIntro h1,
+[dir='rtl'] .dsHero h1,
+[dir='rtl'] .editableSceneTitle h1,
+[dir='rtl'] .editableSceneTitle input,
+[dir='rtl'] .libraryHeader h2 {
+  font-family: 'Alexandria', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
