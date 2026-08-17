@@ -1,6 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from faster_whisper import WhisperModel
 
 import gc
 import json
@@ -10,10 +9,12 @@ import subprocess
 import tempfile
 import wave
 
+import httpx
+
 
 app = FastAPI(
     title="Voice Challenge AI Backend",
-    version="1.2.0",
+    version="1.3.0",
 )
 
 app.add_middleware(
@@ -26,16 +27,20 @@ app.add_middleware(
 
 
 # =========================================================
-# WHISPER
+# GROQ SPEECH-TO-TEXT
 #
-# Render Free has 512 MB RAM, so the model is created only
-# while transcription is running and released afterwards.
-# "tiny" is the safest default for the free instance.
+# Whisper now runs on Groq instead of inside Render.
+# This keeps the same VOX flow while removing the local
+# Whisper model from Render's 512 MB RAM.
 # =========================================================
 
-WHISPER_MODEL_NAME = os.getenv(
-    "WHISPER_MODEL",
-    "tiny",
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_TRANSCRIPTION_URL = (
+    "https://api.groq.com/openai/v1/audio/transcriptions"
+)
+GROQ_WHISPER_MODEL = os.getenv(
+    "GROQ_WHISPER_MODEL",
+    "whisper-large-v3-turbo",
 )
 
 
@@ -44,7 +49,8 @@ def root():
     return {
         "status": "ok",
         "message": "Voice Challenge backend is running",
-        "whisper_model": WHISPER_MODEL_NAME,
+        "speech_provider": "groq",
+        "whisper_model": GROQ_WHISPER_MODEL,
     }
 
 
@@ -52,8 +58,9 @@ def root():
 def health():
     return {
         "backend": "online",
-        "whisper": "on-demand",
-        "whisper_model": WHISPER_MODEL_NAME,
+        "speech_provider": "groq",
+        "groq_key_configured": bool(GROQ_API_KEY),
+        "whisper_model": GROQ_WHISPER_MODEL,
     }
 
 
@@ -126,6 +133,9 @@ def get_video_metadata(video_path):
 
 # =========================================================
 # AUDIO EXTRACTION
+#
+# FLAC keeps speech quality while staying much smaller than
+# PCM WAV. Groq supports FLAC directly.
 # =========================================================
 
 def extract_audio(video_path, audio_path):
@@ -135,12 +145,12 @@ def extract_audio(video_path, audio_path):
         "-i",
         video_path,
         "-vn",
-        "-ac",
-        "1",
         "-ar",
         "16000",
-        "-acodec",
-        "pcm_s16le",
+        "-ac",
+        "1",
+        "-c:a",
+        "flac",
         audio_path,
     ]
 
@@ -155,9 +165,32 @@ def extract_audio(video_path, audio_path):
 # =========================================================
 # LOW-MEMORY WAVEFORM
 #
-# Reads only one waveform bucket at a time instead of loading
-# the entire WAV into RAM and expanding it into a huge tuple.
+# We create a tiny temporary WAV only for waveform sampling.
+# It is read bucket-by-bucket, never loaded fully into RAM.
 # =========================================================
+
+def create_waveform_wav(audio_path, waveform_path):
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        audio_path,
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        "-c:a",
+        "pcm_s16le",
+        waveform_path,
+    ]
+
+    subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=True,
+    )
+
 
 def generate_waveform(audio_path, points=220):
     amplitudes = []
@@ -213,7 +246,7 @@ def generate_waveform(audio_path, points=220):
 
 
 # =========================================================
-# TRANSCRIPTION
+# GROQ TRANSCRIPTION
 # =========================================================
 
 def normalize_language(language):
@@ -225,86 +258,192 @@ def normalize_language(language):
     return None
 
 
+def _safe_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def transcribe_audio(audio_path, language="auto"):
+    if not GROQ_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="GROQ_API_KEY is not configured on the server.",
+        )
+
     forced_language = normalize_language(language)
 
-    whisper_model = None
+    data = {
+        "model": GROQ_WHISPER_MODEL,
+        "response_format": "verbose_json",
+        "temperature": "0",
+    }
 
-    try:
-        whisper_model = WhisperModel(
-            WHISPER_MODEL_NAME,
-            device="cpu",
-            compute_type="int8",
-            cpu_threads=1,
-            num_workers=1,
-        )
+    # Groq accepts both segment and word timestamps.
+    # Sending both preserves the timing data VOX already uses.
+    multipart_fields = [
+        ("timestamp_granularities[]", "segment"),
+        ("timestamp_granularities[]", "word"),
+    ]
 
-        segments, info = whisper_model.transcribe(
-            audio_path,
-            language=forced_language,
-            task="transcribe",
+    if forced_language:
+        data["language"] = forced_language
 
-            # beam_size=1 sharply reduces decoder memory compared
-            # with the previous beam_size=5.
-            beam_size=1,
-
-            temperature=0,
-            vad_filter=True,
-            vad_parameters={
-                "min_silence_duration_ms": 300,
-            },
-
-            # Keep this because VOX needs precise dialogue timing.
-            word_timestamps=True,
-
-            condition_on_previous_text=False,
-        )
-
-        transcript_segments = []
-
-        # Consume the generator while the model is alive.
-        for segment in segments:
-            words = []
-
-            if segment.words:
-                for word in segment.words:
-                    clean_word = word.word.strip()
-
-                    if not clean_word:
-                        continue
-
-                    words.append({
-                        "word": clean_word,
-                        "start": round(word.start, 2),
-                        "end": round(word.end, 2),
-                    })
-
-            text = segment.text.strip()
-
-            if text:
-                transcript_segments.append({
-                    "start": round(segment.start, 2),
-                    "end": round(segment.end, 2),
-                    "text": text,
-                    "words": words,
-                })
-
-        return {
-            "language": info.language,
-            "language_probability": round(
-                info.language_probability,
-                3,
-            ),
-            "forced_language": forced_language,
-            "model": WHISPER_MODEL_NAME,
-            "segments": transcript_segments,
+    with open(audio_path, "rb") as audio_file:
+        files = {
+            "file": (
+                os.path.basename(audio_path),
+                audio_file,
+                "audio/flac",
+            )
         }
 
-    finally:
-        if whisper_model is not None:
-            del whisper_model
+        try:
+            with httpx.Client(timeout=180.0) as client:
+                response = client.post(
+                    GROQ_TRANSCRIPTION_URL,
+                    headers={
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                    },
+                    data=[
+                        *list(data.items()),
+                        *multipart_fields,
+                    ],
+                    files=files,
+                )
+        except httpx.HTTPError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Could not reach Groq transcription service: {exc}",
+            ) from exc
 
-        gc.collect()
+    if response.status_code >= 400:
+        try:
+            error_body = response.json()
+        except Exception:
+            error_body = response.text
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Groq transcription failed.",
+                "provider_status": response.status_code,
+                "provider_response": error_body,
+            },
+        )
+
+    result = response.json()
+
+    # Groq verbose_json can provide both segments and a global
+    # word list. Prefer segment words when present; otherwise
+    # attach global words to the matching segment window.
+    global_words = result.get("words") or []
+    raw_segments = result.get("segments") or []
+
+    transcript_segments = []
+
+    for segment in raw_segments:
+        seg_start = _safe_float(segment.get("start"))
+        seg_end = _safe_float(segment.get("end"))
+        seg_text = (segment.get("text") or "").strip()
+
+        raw_words = segment.get("words") or []
+
+        if not raw_words and global_words:
+            raw_words = [
+                word
+                for word in global_words
+                if (
+                    _safe_float(word.get("start")) >= seg_start - 0.05
+                    and _safe_float(word.get("end")) <= seg_end + 0.05
+                )
+            ]
+
+        words = []
+
+        for word in raw_words:
+            clean_word = (
+                word.get("word")
+                or word.get("text")
+                or ""
+            ).strip()
+
+            if not clean_word:
+                continue
+
+            words.append({
+                "word": clean_word,
+                "start": round(
+                    _safe_float(word.get("start")),
+                    2,
+                ),
+                "end": round(
+                    _safe_float(word.get("end")),
+                    2,
+                ),
+            })
+
+        if seg_text:
+            transcript_segments.append({
+                "start": round(seg_start, 2),
+                "end": round(seg_end, 2),
+                "text": seg_text,
+                "words": words,
+            })
+
+    # Defensive fallback if Groq returns words but no segment list.
+    if not transcript_segments and global_words:
+        words = []
+
+        for word in global_words:
+            clean_word = (
+                word.get("word")
+                or word.get("text")
+                or ""
+            ).strip()
+
+            if not clean_word:
+                continue
+
+            words.append({
+                "word": clean_word,
+                "start": round(
+                    _safe_float(word.get("start")),
+                    2,
+                ),
+                "end": round(
+                    _safe_float(word.get("end")),
+                    2,
+                ),
+            })
+
+        text = (result.get("text") or "").strip()
+
+        if text and words:
+            transcript_segments.append({
+                "start": words[0]["start"],
+                "end": words[-1]["end"],
+                "text": text,
+                "words": words,
+            })
+
+    detected_language = (
+        result.get("language")
+        or forced_language
+        or "unknown"
+    )
+
+    return {
+        "language": detected_language,
+        "language_probability": result.get(
+            "language_probability"
+        ),
+        "forced_language": forced_language,
+        "model": GROQ_WHISPER_MODEL,
+        "provider": "groq",
+        "segments": transcript_segments,
+    }
 
 
 # =========================================================
@@ -411,11 +550,6 @@ def build_subtitle_lines(transcription):
 
 # =========================================================
 # LOW-MEMORY UPLOAD
-#
-# The old version did:
-#   content = await video.read()
-# which held the entire uploaded video in RAM.
-# This version writes 1 MB chunks directly to disk.
 # =========================================================
 
 async def save_upload_in_chunks(
@@ -460,14 +594,21 @@ async def analyze_video(
 
     audio_temp = tempfile.NamedTemporaryFile(
         delete=False,
+        suffix=".flac",
+    )
+
+    waveform_temp = tempfile.NamedTemporaryFile(
+        delete=False,
         suffix=".wav",
     )
 
     video_path = video_temp.name
     audio_path = audio_temp.name
+    waveform_path = waveform_temp.name
 
     video_temp.close()
     audio_temp.close()
+    waveform_temp.close()
 
     total_bytes = 0
 
@@ -503,8 +644,13 @@ async def analyze_video(
             audio_path,
         )
 
-        waveform = generate_waveform(
+        create_waveform_wav(
             audio_path,
+            waveform_path,
+        )
+
+        waveform = generate_waveform(
+            waveform_path,
             points=220,
         )
 
@@ -537,7 +683,7 @@ async def analyze_video(
             "audio": {
                 "sample_rate": 16000,
                 "channels": 1,
-                "format": "wav",
+                "format": "flac",
             },
             "waveform": waveform,
             "transcription": transcription,
@@ -556,10 +702,12 @@ async def analyze_video(
         except Exception:
             pass
 
-        if os.path.exists(video_path):
-            os.remove(video_path)
-
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
+        for temp_path in (
+            video_path,
+            audio_path,
+            waveform_path,
+        ):
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
         gc.collect()
