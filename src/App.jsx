@@ -214,8 +214,30 @@ function publicBackendUrl(url) {
   }
 }
 
+const IS_LOCAL =
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
 
-const ROOMS_API = '/rooms-api'
+const API_BASE = IS_LOCAL
+  ? ''
+  : 'https://vox-platform.onrender.com'
+
+const ANALYSIS_API = IS_LOCAL
+  ? '/api-analysis'
+  : `${API_BASE}/api`
+
+const MIX_API = IS_LOCAL
+  ? '/api-mix'
+  : `${API_BASE}/api-mix`
+
+const ROOMS_API = IS_LOCAL
+  ? ROOMS_API
+  : `${API_BASE}/rooms-api`
+
+const ACCOUNTS_API = IS_LOCAL
+  ? ACCOUNTS_API
+  : `${API_BASE}/accounts-api`
+
 
 async function createInviteRoomRequest(scene) {
   const response = await fetch(`${ROOMS_API}/rooms`, {
@@ -1277,7 +1299,7 @@ function App() {
 
     const response =
       await fetch(
-        '/api-mix/prepare-scene',
+        `${MIX_API}/prepare-scene`,
         {
           method: 'POST',
           body: formData,
@@ -1325,7 +1347,7 @@ function App() {
     )
 
     const response = await fetch(
-      '/api-analysis/analyze-video',
+      `${ANALYSIS_API}/analyze-video`,
       {
         method: 'POST',
         body: formData,
@@ -6519,7 +6541,7 @@ function ContinuousDubResult({
 
         const response =
           await fetch(
-            '/api-mix/render-final',
+            `${MIX_API}/render-final`,
             {
               method:
                 'POST',
