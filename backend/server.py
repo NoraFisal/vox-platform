@@ -3,7 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from main import app as ai_app
 from audio_mix_server import app as mix_app
 from room_server import app as rooms_app
-from account_server import app as accounts_app
+from account_server import (
+    app as accounts_app,
+    init_db as init_accounts_db,
+)
 
 app = FastAPI(title="VOX Platform Backend", version="1.0.0")
 app.add_middleware(
@@ -13,6 +16,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup():
+    # Mounted FastAPI sub-app startup hooks are not guaranteed
+    # to run, so initialize the accounts database from the
+    # parent application.
+    init_accounts_db()
 
 @app.get("/")
 def root():
