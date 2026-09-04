@@ -9,6 +9,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -26,14 +27,17 @@ GENERATED_DIR.mkdir(
 
 app = FastAPI(
     title="VOX Dub Engine",
-    version="2.0.1",
+    version="2.0.0",
 )
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -75,8 +79,14 @@ def run_command(
     return result
 
 
-def media_url(job_id, filename):
-    return f"/api-mix/media/{job_id}/{filename}"
+def media_url(
+    job_id,
+    filename,
+):
+    return (
+        "http://127.0.0.1:8002"
+        f"/media/{job_id}/{filename}"
+    )
 
 
 def find_source_file(
@@ -120,11 +130,11 @@ def prepare_stems(
             vocals_path,
         )
 
-    # Render's free instance cannot keep Demucs in memory.
-    # Use the original soundtrack as the vocal track and a
-    # silent background track. During recorded lines the
-    # frontend ducks the original soundtrack and overlays the
-    # user's voice. This keeps the service stable on 512 MB.
+    input_wav = (
+        job_dir /
+        "scene_audio.wav"
+    )
+
     run_command([
         "ffmpeg",
         "-y",
@@ -137,20 +147,64 @@ def prepare_stems(
         "44100",
         "-c:a",
         "pcm_s16le",
-        str(vocals_path),
+        str(input_wav),
     ])
 
+    demucs_out = (
+        job_dir /
+        "demucs"
+    )
+
     run_command([
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(vocals_path),
-        "-af",
-        "volume=0",
-        "-c:a",
-        "pcm_s16le",
-        str(background_path),
+        sys.executable,
+        "-m",
+        "demucs",
+        "--two-stems=vocals",
+        "-n",
+        "htdemucs",
+        "-d",
+        "cpu",
+        "--shifts",
+        "1",
+        "--out",
+        str(demucs_out),
+        str(input_wav),
     ])
+
+    track_dir = (
+        demucs_out /
+        "htdemucs" /
+        input_wav.stem
+    )
+
+    generated_vocals = (
+        track_dir /
+        "vocals.wav"
+    )
+
+    generated_background = (
+        track_dir /
+        "no_vocals.wav"
+    )
+
+    if (
+        not generated_vocals.exists()
+        or
+        not generated_background.exists()
+    ):
+        raise RuntimeError(
+            "Demucs did not create the expected stems."
+        )
+
+    shutil.copy2(
+        generated_vocals,
+        vocals_path,
+    )
+
+    shutil.copy2(
+        generated_background,
+        background_path,
+    )
 
     return (
         background_path,
@@ -162,7 +216,8 @@ def prepare_stems(
 def root():
     return {
         "status": "ok",
-        "engine": "VOX Dub Engine v2",
+        "engine":
+            "VOX Dub Engine v2",
     }
 
 
@@ -170,12 +225,10 @@ def root():
 def health():
     return {
         "status": "ok",
-        "ffmpeg": (
+        "ffmpeg":
             shutil.which(
                 "ffmpeg"
-            )
-            is not None
-        ),
+            ) is not None,
     }
 
 
@@ -186,8 +239,8 @@ async def prepare_scene(
     content = await video.read()
 
     digest = hashlib.sha256(
-        content
-    ).hexdigest()[:20]
+            content
+        ).hexdigest()[:20]
 
     job_id = f"dub-{digest}"
 
@@ -231,17 +284,7 @@ async def prepare_scene(
                 source_path,
             )
         )
-
     except Exception as error:
-        print(
-            (
-                "PREPARE SCENE ERROR: "
-                f"{type(error).__name__}: "
-                f"{error}"
-            ),
-            flush=True,
-        )
-
         raise HTTPException(
             status_code=500,
             detail=str(error),
@@ -279,7 +322,6 @@ def vocal_gain_expression(
     We use smooth fades around that padded window so the
     original actor does not pop in/out between takes.
     """
-
     expressions = []
 
     for entry in entries:
@@ -354,13 +396,12 @@ async def render_final(
 ):
     try:
         entries = json.loads(
-            manifest
-        )
-
+                manifest
+            )
     except Exception:
         raise HTTPException(
             status_code=400,
-            detail="Invalid take manifest.",
+            detail = "Invalid take manifest.",
         )
 
     job_dir = (
@@ -371,13 +412,13 @@ async def render_final(
     if not job_dir.exists():
         raise HTTPException(
             status_code=404,
-            detail="Prepared scene was not found.",
+            detail = "Prepared scene was not found.",
         )
 
     try:
         source_path = find_source_file(
-            job_dir
-        )
+                job_dir
+            )
 
         background_path, vocals_path = (
             prepare_stems(
@@ -385,17 +426,7 @@ async def render_final(
                 source_path,
             )
         )
-
     except Exception as error:
-        print(
-            (
-                "RENDER FINAL PREP ERROR: "
-                f"{type(error).__name__}: "
-                f"{error}"
-            ),
-            flush=True,
-        )
-
         raise HTTPException(
             status_code=500,
             detail=str(error),
@@ -407,10 +438,7 @@ async def render_final(
     ):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Take manifest and files "
-                "do not match."
-            ),
+            detail = "Take manifest and files do not match.",
         )
 
     takes_dir = (
@@ -556,6 +584,8 @@ async def render_final(
             )
         )
 
+        # Small fade handles prevent clicks while preserving
+        # the natural pre/post-roll captured around the line.
         fade = min(
             0.045,
             duration /
@@ -578,9 +608,7 @@ async def render_final(
                 f"atrim=0:{duration:.6f},"
                 "asetpts=PTS-STARTPTS,"
                 f"afade=t=in:st=0:d={fade:.6f},"
-                f"afade=t=out:"
-                f"st={fade_out_start:.6f}:"
-                f"d={fade:.6f},"
+                f"afade=t=out:st={fade_out_start:.6f}:d={fade:.6f},"
                 f"adelay={delay_ms}|{delay_ms}"
                 f"[{label}]"
             )
@@ -619,8 +647,8 @@ async def render_final(
     )
 
     filter_complex = ";".join(
-        filters
-    )
+            filters
+        )
 
     command.extend([
         "-filter_complex",
@@ -653,17 +681,7 @@ async def render_final(
         run_command(
             command
         )
-
     except Exception as error:
-        print(
-            (
-                "RENDER FINAL ERROR: "
-                f"{type(error).__name__}: "
-                f"{error}"
-            ),
-            flush=True,
-        )
-
         raise HTTPException(
             status_code=500,
             detail=str(error),
