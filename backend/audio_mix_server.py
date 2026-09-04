@@ -281,6 +281,7 @@ async def prepare_scene(
 def vocal_gain_expression(
     entries,
     fade_seconds=0.075,
+    replacement_floor=0.18,
 ):
     """
     Continuous gain envelope for the original vocal stem.
@@ -334,12 +335,16 @@ def vocal_gain_expression(
             "1,"
             "if(lt(t,"
             f"{start:.6f}),"
+            f"{replacement_floor:.6f}+"
+            f"(1-{replacement_floor:.6f})*"
             f"({start:.6f}-t)/{fade:.6f},"
             "if(lt(t,"
             f"{end:.6f}),"
-            "0,"
+            f"{replacement_floor:.6f},"
             "if(lt(t,"
             f"{fade_out_end:.6f}),"
+            f"{replacement_floor:.6f}+"
+            f"(1-{replacement_floor:.6f})*"
             f"(t-{end:.6f})/{fade:.6f},"
             "1))))"
         )
