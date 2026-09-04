@@ -9,7 +9,6 @@ import hashlib
 import json
 import shutil
 import subprocess
-import sys
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -121,11 +120,11 @@ def prepare_stems(
             vocals_path,
         )
 
-    input_wav = (
-        job_dir /
-        "scene_audio.wav"
-    )
-
+    # Render's free instance cannot keep Demucs in memory.
+    # Use the original soundtrack as the vocal track and a
+    # silent background track. During recorded lines the
+    # frontend ducks the original soundtrack and overlays the
+    # user's voice. This keeps the service stable on 512 MB.
     run_command([
         "ffmpeg",
         "-y",
@@ -138,64 +137,20 @@ def prepare_stems(
         "44100",
         "-c:a",
         "pcm_s16le",
-        str(input_wav),
+        str(vocals_path),
     ])
-
-    demucs_out = (
-        job_dir /
-        "demucs"
-    )
 
     run_command([
-        sys.executable,
-        "-m",
-        "demucs",
-        "--two-stems=vocals",
-        "-n",
-        "htdemucs",
-        "-d",
-        "cpu",
-        "--shifts",
-        "1",
-        "--out",
-        str(demucs_out),
-        str(input_wav),
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(vocals_path),
+        "-af",
+        "volume=0",
+        "-c:a",
+        "pcm_s16le",
+        str(background_path),
     ])
-
-    track_dir = (
-        demucs_out /
-        "htdemucs" /
-        input_wav.stem
-    )
-
-    generated_vocals = (
-        track_dir /
-        "vocals.wav"
-    )
-
-    generated_background = (
-        track_dir /
-        "no_vocals.wav"
-    )
-
-    if (
-        not generated_vocals.exists()
-        or
-        not generated_background.exists()
-    ):
-        raise RuntimeError(
-            "Demucs did not create the expected stems."
-        )
-
-    shutil.copy2(
-        generated_vocals,
-        vocals_path,
-    )
-
-    shutil.copy2(
-        generated_background,
-        background_path,
-    )
 
     return (
         background_path,
