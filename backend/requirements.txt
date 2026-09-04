@@ -4,5 +4,3 @@ python-multipart
 pydantic[email]
 faster-whisper
 httpx
-demucs
-numpy
